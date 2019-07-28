@@ -166,7 +166,7 @@ class Picker {
     return await showModalBottomSheet<T>(
         context: context, //state.context,
         builder: (BuildContext context) {
-          return makePicker(themeData, true);
+          return SafeArea(bottom: true, child: makePicker(themeData, true));
         });
   }
 
