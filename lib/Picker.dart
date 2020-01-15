@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/material.dart' as Dialog;
 import 'dart:async';
+import 'PickerLocalizations.dart';
 
 const bool __printDebug = false;
 
@@ -14,78 +15,25 @@ typedef PickerConfirmCallback = void Function(
 /// Picker value format callback.
 typedef PickerValueFormat<T> = String Function(T value);
 
-/// localizations
-class PickerLocalizations {
-  static const Map<String, Map<String, Object>> localizedValues = {
-    'en': {
-      'cancelText': 'Cancel',
-      'confirmText': 'Confirm',
-      'ampm': ['AM', 'PM'],
-    },
-    'zh': {
-      'cancelText': '取消',
-      'confirmText': '确定',
-      'ampm': ['上午', '下午'],
-    },
-    'ko': {
-      'cancelText': '취소',
-      'confirmText': '확인',
-      'ampm': ['오전', '오후'],
-    },
-    'it': {
-      'cancelText': 'Annulla',
-      'confirmText': 'Conferma',
-      'ampm': ['AM', 'PM'],
-    },
-    'ar':{
-      'cancelText': 'إلغاء الأمر',
-      'confirmText': 'تأكيد',
-      'ampm': ['صباحاً', 'مساءً'],
-    },
-    'fr': {
-      'cancelText': 'Annuler',
-      'confirmText': 'Confirmer',
-      'ampm': ['Matin', 'Après-midi'],
-    },    
-  };
-
-  static PickerLocalizations _static = const PickerLocalizations(null);
-
-  final Locale locale;
-
-  const PickerLocalizations(this.locale);
-
-  static PickerLocalizations of(BuildContext context) {
-    return Localizations.of<PickerLocalizations>(context, PickerLocalizations) ?? _static;
-  }
-
-  Object getItem(String key) {
-    Map localData;
-    if (locale != null)  localData = localizedValues[locale.languageCode];
-    if (localData == null) return localizedValues['en'][key];
-    return localData[key];
-  }
-
-  String get cancelText => getItem("cancelText");
-  String get confirmText => getItem("confirmText");
-  List get ampm => getItem("ampm");
-}
-
-
 /// Picker
 class Picker {
   static const double DefaultTextSize = 20.0;
 
+  /// Index of currently selected items
   List<int> selecteds;
+  /// Picker adapter, Used to provide data and generate widgets
   final PickerAdapter adapter;
+  /// insert separator before picker columns
   final List<PickerDelimiter> delimiter;
 
   final VoidCallback onCancel;
   final PickerSelectedCallback onSelect;
   final PickerConfirmCallback onConfirm;
 
+  /// When the previous level selection changes, scroll the child to the first item.
   final changeToFirst;
 
+  /// Specify flex for each column
   final List<int> columnFlex;
 
   final Widget title;
@@ -94,14 +42,26 @@ class Picker {
   final String cancelText;
   final String confirmText;
 
-  final double height, itemExtent;
+  final double height;
+
+  /// Height of list item
+  final double itemExtent;
+
   final TextStyle textStyle, cancelTextStyle, confirmTextStyle, selectedTextStyle;
   final TextAlign textAlign;
+
+  /// Text scaling factor
   final double textScaleFactor;
+
   final EdgeInsetsGeometry columnPadding;
   final Color backgroundColor, headercolor, containerColor;
+
+  /// Hide head
   final bool hideHeader;
+
+  /// List item loop
   final bool looping;
+
   final Widget footer;
 
   final Decoration headerDecoration;
@@ -146,6 +106,7 @@ class Picker {
   int _maxLevel = 1;
 
   /// 生成picker控件
+  /// Build picker control
   Widget makePicker([ThemeData themeData, bool isModal = false]) {
     _maxLevel = adapter.maxLevel;
     adapter.picker = this;
@@ -154,14 +115,14 @@ class Picker {
     return _widget;
   }
 
-  /// 显示 picker
+  /// show picker
   void show(ScaffoldState state, [ThemeData themeData]) {
     state.showBottomSheet((BuildContext context) {
       return makePicker(themeData);
     });
   }
 
-  /// 显示模态 picker
+  /// Display modal picker
   Future<T> showModal<T>(BuildContext context, [ThemeData themeData]) async {
     return await showModalBottomSheet<T>(
         context: context, //state.context,
@@ -185,7 +146,7 @@ class Picker {
                     Navigator.pop(context);
                     if (onCancel != null) onCancel();
                   },
-                  child: Text(_cancelText)));
+                  child: cancelTextStyle == null ? Text(_cancelText) : DefaultTextStyle(child: Text(_cancelText), style: cancelTextStyle)));
             }
           } else {
             actions.add(cancel);
@@ -199,7 +160,7 @@ class Picker {
                     Navigator.pop(context);
                     if (onConfirm != null) onConfirm(this, selecteds);
                   },
-                  child: Text(_confirmText)));
+                  child: confirmTextStyle == null ? Text(_confirmText) : DefaultTextStyle(child: Text(_confirmText), style: confirmTextStyle)));
             }
           } else {
             actions.add(confirm);
@@ -214,6 +175,7 @@ class Picker {
   }
 
   /// 获取当前选择的值
+  /// Get the value of the current selection
   List getSelectedValues() {
     return adapter.getSelectedValues();
   }
@@ -303,7 +265,9 @@ class PickerWidgetState<T> extends State<_PickerWidget> {
           ),
           decoration: picker.headerDecoration ?? BoxDecoration(
             border: Border(
-                top: BorderSide(color: theme.dividerColor, width: 0.5)),
+                top: BorderSide(color: theme.dividerColor, width: 0.5),
+                bottom: BorderSide(color: theme.dividerColor, width: 0.5),
+            ),
             color: picker.headercolor == null
                 ? theme.bottomAppBarColor
                 : picker.headercolor,
@@ -406,10 +370,6 @@ class PickerWidgetState<T> extends State<_PickerWidget> {
             padding: picker.columnPadding,
             height: picker.height,
             decoration: BoxDecoration(
-              border: picker.hideHeader
-                  ? null
-                  : new Border(
-                      top: BorderSide(color: theme.dividerColor, width: 0.5)),
               color: picker.containerColor == null
                   ? theme.dialogBackgroundColor
                   : picker.containerColor,
@@ -442,6 +402,14 @@ class PickerWidgetState<T> extends State<_PickerWidget> {
           ),
         );
         items.add(view);
+
+        if (!picker.changeToFirst && picker.selecteds[i] >= _length) {
+          Timer(Duration(milliseconds: 100), () {
+            if (__printDebug) print("timer last");
+            scrollController[i].jumpToItem(_length - 1);
+          });
+        }
+
         adapter.setColumn(i);
       }
     }
@@ -551,7 +519,10 @@ abstract class PickerAdapter<T> {
   }
 
   int get maxLevel => getMaxLevel();
+
+  /// Content length of current column
   int get length => getLength();
+
   String get text => getText();
 
   // 是否联动，即后面的列受前面列数据影响
@@ -888,12 +859,21 @@ class PickerDateTimeType {
 }
 
 class DateTimePickerAdapter extends PickerAdapter<DateTime> {
+  /// display type, ref: columnType
   final int type;
+  /// Whether to display the month in numerical form.If true, months is not used.
   final bool isNumberMonth;
+  /// custom months strings
   final List<String> months;
+  /// Custom AM, PM strings
   final List<String> strAMPM;
+  /// year begin...end.
   final int yearBegin, yearEnd;
+  /// minimum datetime
   final DateTime minValue, maxValue;
+  /// jump minutes, user could select time in intervals of 30min, 5mins, etc....
+  final int minuteInterval;
+  /// Year, month, day suffix
   final String yearSuffix, monthSuffix, daySuffix;
   /// use two-digit year, 2019, displayed as 19
   final bool twoDigitYear;
@@ -944,9 +924,10 @@ class DateTimePickerAdapter extends PickerAdapter<DateTime> {
     this.yearSuffix,
     this.monthSuffix,
     this.daySuffix,
+    this.minuteInterval,
     this.customColumnType,
     this.twoDigitYear = false,
-  }) {
+  }) : assert (minuteInterval == null || (minuteInterval >= 1 && minuteInterval <= 30 && (60 % minuteInterval == 0))) {
     super.picker = picker;
     _yearBegin = yearBegin;
     if (minValue != null && minValue.year > _yearBegin) {
@@ -958,6 +939,7 @@ class DateTimePickerAdapter extends PickerAdapter<DateTime> {
   int _colAP = -1;
   int _yearBegin = 0;
 
+  /// Currently selected value
   DateTime value;
 
   // but it can improve the performance, so keep it.
@@ -1026,6 +1008,12 @@ class DateTimePickerAdapter extends PickerAdapter<DateTime> {
       return ye - _yearBegin + 1;
     }
     if (v == 31) return _calcDateCount(value.year, value.month);
+    if (minuteInterval != null && minuteInterval > 1) {
+      int _type = getColumnType(_col);
+      if (_type == 4) {
+        return v ~/ minuteInterval;
+      }
+    }
     return v;
   }
 
@@ -1068,16 +1056,26 @@ class DateTimePickerAdapter extends PickerAdapter<DateTime> {
         if (isNumberMonth) {
           _text = "${index + 1}${_checkStr(monthSuffix)}";
         } else {
-          _text = "${months[index]}";
+          if (months != null)
+            _text = "${months[index]}";
+          else {
+            List _months = PickerLocalizations.of(context).months ?? MonthsList_EN;
+            _text = "${_months[index]}";
+          }
         }
         break;
       case 2:
         _text = "${index + 1}${_checkStr(daySuffix)}";
         break;
       case 3:
-      case 4:
       case 5:
         _text = "${intToStr(index)}";
+        break;
+      case 4:
+        if (minuteInterval == null || minuteInterval < 2)
+          _text = "${intToStr(index)}";
+        else
+          _text = "${intToStr(index * minuteInterval)}";
         break;
       case 6:
         List _ampm = strAMPM ?? PickerLocalizations.of(context).ampm;
@@ -1099,9 +1097,10 @@ class DateTimePickerAdapter extends PickerAdapter<DateTime> {
 
   @override
   int getColumnFlex(int column) {
-    if (getColumnType(column) == 0) {
+    if (picker.columnFlex != null && column < picker.columnFlex.length)
+      return picker.columnFlex[column];
+    if (getColumnType(column) == 0)
       return 3;
-    }
     return 2;
   }
 
@@ -1125,7 +1124,7 @@ class DateTimePickerAdapter extends PickerAdapter<DateTime> {
           picker.selecteds[i] = value.hour;
           break;
         case 4:
-          picker.selecteds[i] = value.minute;
+          picker.selecteds[i] = minuteInterval == null || minuteInterval < 2 ? value.minute : value.minute ~/ minuteInterval;
           break;
         case 5:
           picker.selecteds[i] = value.second;
@@ -1167,7 +1166,7 @@ class DateTimePickerAdapter extends PickerAdapter<DateTime> {
         h = index;
         break;
       case 4:
-        m = index;
+        m = (minuteInterval == null || minuteInterval < 2) ? index : index * minuteInterval;
         break;
       case 5:
         s = index;
